@@ -1,6 +1,8 @@
 import bycrypt from 'bcryptjs';
 import User from '../models/user.model.js';
+import UserData from '../models/task.model.js';
 import generateTokenSetCookie from "../utils/generateToken.js";
+import mongoose from "mongoose";
 
 // ------------User sign up---------- ✅
 export const signUpUser = async (req, res) => {
@@ -79,11 +81,15 @@ export const logOutUser = (req, res) => {
 }
 
 
-// ------------Data retriving---------- 
-export const gettingData = (req, res) => {
+// ------------Data retriving---------- ✅
+export const gettingData = async (req, res) => {
     try {
-        
-        res.status(200).json({ message: "Logged Out Successfully" });
+        const userID = req.user._id;
+
+        // Find the user data by userid
+        const userData = await UserData.findOne({ userid: userID });
+
+        res.status(200).json(userData );
     } catch (error) {
         console.log("Error in Get data controller", error.message);
         res.status(500).json({ error: "Internal Server error" })
@@ -91,23 +97,68 @@ export const gettingData = (req, res) => {
     }
 }
 
-// ------------Task Adding---------- 
-export const addingTask = (req, res) => {
+// ------------Task Adding---------- ✅
+export const addingTask = async (req, res) => {
     try {
-        
-        res.status(200).json({ message: "Logged Out Successfully" });
-    } catch (error) {
+        let userData;
+        const userID = req.user._id;
+        console.log("UserID:", userID);
+        const todoData = req.body;
+        console.log("TodoData:", todoData);
+
+        // Find the user data by userid
+        userData = await UserData.findOne({ userid: userID });
+
+        if (!userData) {
+
+            // If user data does not exist, create a new UserData document
+            userData = new UserData({
+                userid: userID,
+                data: [todoData] // Wrap todoData in an array
+            });
+
+        } else {
+            // If user data exists, update the data by pushing todoData
+            userData.data.push(todoData);
+        }
+
+        await userData.save();
+
+        res.status(200).json({ message: userData });
+    }
+    catch (error) {
         console.log("Error in Add controller", error.message);
         res.status(500).json({ error: "Internal Server error" })
 
     }
 }
 
-// ------------Update task status---------- 
-export const updatingTask = (req, res) => {
+// ------------Update task status---------- ✅
+export const updatingTask = async (req, res) => {
     try {
-        
-        res.status(200).json({ message: "Logged Out Successfully" });
+        let result;
+        const userID = req.user._id;
+        const { taskID } = req.body;
+
+        // Find the user data by userid and update the isCompleted field in the matched task
+        const updatedUserData = await UserData.findOne({ userid: userID });
+
+        if (updatedUserData) {
+            // Iterate over the data array to find the matching task
+            updatedUserData.data.forEach(task => {
+
+                if (task._id == taskID) {
+                    // Update the isCompleted field 
+                    task.isCompleted = task.isCompleted ? false : true;
+                    result = task.isCompleted;
+                }
+            });
+
+            // Save the updated user data
+            await updatedUserData.save();
+
+            res.status(200).json({ isCompleted: result });
+        }
     } catch (error) {
         console.log("Error in Update controller", error.message);
         res.status(500).json({ error: "Internal Server error" })
@@ -115,15 +166,28 @@ export const updatingTask = (req, res) => {
     }
 }
 
-// ------------Delete task---------- 
-export const deletingTask = (req, res) => {
+// ------------Delete task---------- ✅
+export const deletingTask = async(req, res) => {
     try {
-        
-        res.status(200).json({ message: "Logged Out Successfully" });
-    } catch (error) {
-        console.log("Error in Delete controller", error.message);
-        res.status(500).json({ error: "Internal Server error" })
+        const userID = req.user._id;
+        const { taskID } = req.body;
 
+        // Find the user data by userid
+        const updatedUserData = await UserData.findOne({ userid: userID });
+
+        if (updatedUserData) {
+            // Filter the data array to exclude the object with the specified _id
+            updatedUserData.data = updatedUserData.data.filter(task => task._id != taskID);
+
+            // Save the updated user data
+            await updatedUserData.save();
+
+            res.status(200).json({ delete: true });
+        } 
+    }catch (error) {
+            console.log("Error in Delete controller", error.message);
+            res.status(500).json({ error: "Internal Server error" })
+
+        }
     }
-}
 
